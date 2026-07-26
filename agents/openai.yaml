@@ -1,0 +1,6 @@
+display_name: Remote HPC Operator
+short_description: Access and operate documented remote HPC environments safely.
+default_prompt: >-
+  Use this skill to inspect, access, and operate one of the user's documented
+  remote HPC environments. Confirm the target machine, read its profile, then
+  follow the matching SSH path, scheduler rules, and command recipes.

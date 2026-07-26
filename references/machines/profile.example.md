@@ -1,0 +1,73 @@
+# Machine: `<machine_id>`
+
+Keep the completed profile in `references/machines/local/` or in the private
+directory selected by `REMOTE_HPC_OPERATOR_CONFIG_DIR`. Never commit real
+accounts, hosts, paths, authentication details, or cluster topology.
+
+## Quick Facts
+
+- Machine ID: `<machine_id>`
+- Cluster name: `<descriptive_name>`
+- Scheduler: `<Slurm_SGE_PBS_LSF_or_direct>`
+- Login host alias: `<ssh_alias>`
+- Login node hostname: `<login_node>`
+- Username: `<username>`
+
+## Authentication
+
+- SSH access: `ssh <ssh_alias>`
+- Login mode: `<passwordless_password_MFA_or_other>`
+- Jump host requirement: `<requirement>`
+- Browser-based login requirement: `<requirement>`
+
+## Access Path
+
+```text
+local machine -> ssh <ssh_alias> -> <login_node>
+```
+
+Document any additional hops without exposing credentials.
+
+## Node Roles
+
+- `<login_node>`: `<allowed_management_and_submission_roles>`
+- `<execution_node_or_scheduler>`: `<allowed_execution_roles>`
+- `<installation_node>`: `<network_and_installation_roles>`
+
+## Directory Conventions
+
+- Allowed working root: `<remote_work_root>`
+- Runs root for agent tooling: `<runs_root>`
+- Software install root: `<software_root_or_pending>`
+- Shared storage policy: `<policy>`
+- Temporary storage policy: `<policy>`
+
+## Scheduler
+
+- Scheduler: `<scheduler>`
+- Read-only status commands: `<commands>`
+- Submission policy: `<policy>`
+- Default queue or partition: `<value_or_unknown>`
+
+## Software and Environment Policy
+
+- Internet-capable node: `<node_or_none>`
+- Compute-node internet access: `<yes_no_or_unknown>`
+- Agent-managed software root: `<software_root_or_pending>`
+- Environment index: `<software_index_or_pending>`
+
+## Machine-Specific Recipes
+
+Connectivity check:
+
+```bash
+ssh <ssh_alias> 'hostname && whoami && pwd'
+```
+
+Add only the minimal commands needed to operate this machine safely.
+
+## Safety Notes
+
+- Do not run business workloads on `<forbidden_nodes>`.
+- Do not write outside `<allowed_roots>` without explicit user approval.
+- Do not assume node roles, networking, or scheduler behavior not documented here.

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${HOOK_DIR}/.." && pwd)"
+
+"${REPO_ROOT}/scripts/audit_public_tree.sh" --staged
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf 'ERROR: gitleaks is required; install it before committing.\n' >&2
+  exit 1
+fi
+
+cd "${REPO_ROOT}"
+gitleaks git --pre-commit --redact --staged --verbose
