@@ -16,6 +16,7 @@ REMOTE_WORK_ROOT=""
 RUNS_ROOT=""
 SCHEDULER=""
 FORBIDDEN_BUSINESS_TARGETS=""
+EXECUTION_POLICY="profile_controlled"
 
 timestamp_utc() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
@@ -51,6 +52,8 @@ load_machine_config() {
   fi
 
   local row
+  local field_separator
+  local delimited_row
   row="$(awk -F '\t' -v machine="${MACHINE}" 'NR > 1 && $1 == machine { print; found=1; exit } END { if (!found) exit 1 }' "${MACHINE_CONFIG}")" || {
     echo "ERROR: unknown machine: ${MACHINE}" >&2
     echo "Available machines:" >&2
@@ -58,13 +61,30 @@ load_machine_config() {
     exit 1
   }
 
-  IFS=$'\t' read -r MACHINE SSH_ALIAS LOGIN_NODE REMOTE_WORK_ROOT RUNS_ROOT SCHEDULER FORBIDDEN_BUSINESS_TARGETS <<<"${row}"
+  # A tab is shell whitespace, so a plain IFS=$'\t' read collapses empty TSV
+  # columns. Translate tabs to a non-whitespace separator to preserve an empty
+  # forbidden_business_targets column before the optional execution policy.
+  field_separator=$'\034'
+  delimited_row="${row//$'\t'/${field_separator}}"
+  IFS="${field_separator}" read -r MACHINE SSH_ALIAS LOGIN_NODE REMOTE_WORK_ROOT RUNS_ROOT SCHEDULER FORBIDDEN_BUSINESS_TARGETS EXECUTION_POLICY <<<"${delimited_row}"
+
+  # Keep existing private configs backward-compatible. A machine must opt in to
+  # scheduler-only enforcement explicitly.
+  EXECUTION_POLICY="${EXECUTION_POLICY:-profile_controlled}"
 
   require_arg "${SSH_ALIAS}" "ssh_alias for machine ${MACHINE}"
   require_arg "${LOGIN_NODE}" "login_node for machine ${MACHINE}"
   require_arg "${REMOTE_WORK_ROOT}" "remote_work_root for machine ${MACHINE}"
   require_arg "${RUNS_ROOT}" "runs_root for machine ${MACHINE}"
   require_arg "${SCHEDULER}" "scheduler for machine ${MACHINE}"
+
+  case "${EXECUTION_POLICY}" in
+    profile_controlled|scheduler_only)
+      ;;
+    *)
+      die "unsupported execution_policy for machine ${MACHINE}: ${EXECUTION_POLICY}"
+      ;;
+  esac
 }
 
 require_scheduler() {
@@ -111,11 +131,22 @@ ssh_login_script() {
   ssh "${SSH_ALIAS}" 'bash -s'
 }
 
+enforce_target_access_policy() {
+  local target="$1"
+  require_arg "${target}" "target"
+
+  if [[ "${EXECUTION_POLICY}" == "scheduler_only" && "${target}" != "${LOGIN_NODE}" ]]; then
+    die "machine ${MACHINE} is scheduler_only; refusing direct SSH to ${target}; submit with sbatch or request an interactive allocation with srun from ${LOGIN_NODE}"
+  fi
+}
+
 ssh_target() {
   local target="$1"
   local remote_cmd="$2"
   local quoted_target
   local quoted_remote_cmd
+
+  enforce_target_access_policy "${target}"
 
   if [[ "${target}" == "${LOGIN_NODE}" ]]; then
     ssh "${SSH_ALIAS}" "${remote_cmd}"
@@ -130,7 +161,7 @@ ssh_target() {
 ssh_target_script() {
   local target="$1"
   local quoted_target
-  require_arg "${target}" "target"
+  enforce_target_access_policy "${target}"
 
   if [[ "${target}" == "${LOGIN_NODE}" ]]; then
     ssh "${SSH_ALIAS}" 'bash -s'

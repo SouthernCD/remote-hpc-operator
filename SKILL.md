@@ -10,7 +10,7 @@ description: Use this skill when the user needs the agent to access, inspect, tr
 - 将 private config directory 解析为 `${REMOTE_HPC_OPERATOR_CONFIG_DIR:-<skill-root>/references/machines/local}`。
 - 每次远程任务都先读取 private config directory 中的 `index.md`。
 - 如果 private config directory、`index.md`、目标 profile 或 `config.tsv` 不存在，停止并说明缺少哪项配置。可参考 `references/machines/*.example.*` 创建私有配置，但绝不能把示例当作真实机器使用。
-- 不存在默认机器。若用户没有在当前请求中明确指定机器，先询问用户选择哪台机器。
+- 不存在默认机器。新任务若未指定机器，先询问用户选择；若用户明确要求查询先前某个任务，且当前对话中的交接记录能唯一确定机器和任务，可据此查询，不要把上次使用的机器当作其他任务的默认值。
 - 用户指定机器后，读取该机器的 profile，再继续执行任务。
 - 不要把任意 profile 中的节点、目录、联网能力、调度系统或安全规则当作其他机器的普适事实。
 - 如果机器索引和机器 profile 冲突，以 profile 为准，并在输出中说明冲突。
@@ -22,6 +22,7 @@ description: Use this skill when the user needs the agent to access, inspect, tr
 - 登录节点、管理节点、专用节点、联网节点、计算节点等角色必须从目标机器 profile 中确认。
 - 工作目录、共享存储、临时目录、环境目录和日志目录必须从目标机器 profile 中确认。
 - 调度系统和命令必须从目标机器 profile 中确认；不要凭经验假设是 Slurm、SGE、PBS 或 LSF。
+- 若机器 profile 或 `config.tsv` 将 execution policy 声明为 `scheduler_only`，只能 SSH 到登录节点做轻量管理和提交；不得 SSH 到计算节点执行、后台启动或诊断业务任务。批处理使用调度器提交命令，交互任务也必须先获取调度器 allocation。
 - 软件安装前先确认目标机器的联网节点、包管理策略和用户权限。
 - 生信、群体遗传、基因组学、系统发育、统计计算和常见 CLI 工具安装时，默认优先使用目标机器 software root 中的 `micromamba`，按 `bioconda` + `conda-forge` 渠道解决依赖；只有在确认目标软件不在合适 channel、版本不可用、包损坏、许可证/性能要求不适合 conda 包，或用户明确要求源码构建时，才转向源码安装。
 - 软件、环境、依赖、包管理器或已有工具检查任务，必须按目标机器 profile 的 software root 约定执行；不要默认把可复用软件装到 scratch 或项目目录。
@@ -49,12 +50,13 @@ description: Use this skill when the user needs the agent to access, inspect, tr
 ## Workflow
 
 1. 解析 private config directory 并读取其中的机器索引，确认用户本次要操作的机器。
-2. 若机器未明确，询问用户选择；不要自行使用上次机器或默认机器。
+2. 若机器未明确，询问用户选择；查询先前任务时，可使用当前对话中能唯一定位该任务的交接记录。
 3. 读取目标机器 profile，确认：
    - SSH 入口和认证方式
    - 登录节点、执行节点、联网节点和禁止业务运行的节点
    - 工作目录、共享存储和临时目录规则
    - 调度系统、队列或直接执行策略
+   - execution policy 是否为 `scheduler_only`
    - 软件环境、模块系统或用户态包管理策略
    - agent-managed software root 及其索引文件状态
 4. 用最小化只读命令验证链路是否通。
@@ -69,6 +71,14 @@ description: Use this skill when the user needs the agent to access, inspect, tr
    - 从机器 profile 读取的信息
    - 基于当前上下文推断的信息
    - 需要用户补充或手动完成的步骤
+
+## Long-Running Task Handoff
+
+- 对预计运行较久的直接任务或调度作业，启动后做有限的初始检查：确认提交被接受；若已开始运行，检查进程或调度状态、近期日志与可用的心跳/进度信号。排队中的作业只报告已排队，不为等它开始而持续轮询；启动即失败的任务先诊断可见错误。
+- 一旦确认任务正在稳定执行，或确认调度作业已正常排队，就结束当前 agent 回合；不要为了等待完成而持续轮询或保持 SSH/工具会话。若用户明确要求持续监控或等待结果，按该要求执行。
+- 退出时给用户可继续追踪的交接信息：机器、执行节点或队列、项目与运行目录、启动/提交时间、任务状态、日志路径，以及直接任务的 PID 或调度作业的 job ID。PID 未取得时如实说明；不要把调度 job ID 当作 PID。给出适用的状态查询方式，并请用户自行查看进度，或稍后在此对话中唤醒 agent 再查。
+- 交接信息应足以在对话压缩或后续回合中定位任务；优先引用远程保存的 run metadata 与日志路径，不依赖 agent 对进程状态的记忆。再次被请求查询时，从交接记录确定机器和任务，重新读取机器 profile 和远程实时状态，再报告进展。若记录不足以唯一定位，询问缺少的标识。
+- 具体脚本与状态查询方式见 [references/operation-recipes.md](references/operation-recipes.md) 的 Long-Running Task Tooling。
 
 ## Command Strategy
 
@@ -97,6 +107,7 @@ description: Use this skill when the user needs the agent to access, inspect, tr
   - 编写 skill 脚本时，使用 `scripts/common.sh` 中的 `ssh_target_script <target>` 从 stdin 执行远程脚本；保留 `ssh_target` 只用于短命令。
   - 中等复杂、一次性、无需远程留档的操作可用 `scripts/run_remote_script.sh --machine <machine_id> --target <node> --name <label> < script.sh`。
   - 长任务、可复用任务、会修改远程状态或需要审计记录的任务，优先使用 `scripts/start_remote_task.sh`、调度脚本或明确保存到远程工作目录的脚本文件。
+  - `scripts/start_remote_task.sh`、`scripts/run_remote_script.sh` 及其直接节点检查工具不适用于 `scheduler_only` 机器；通用 SSH helper 会拒绝对这类机器的非登录节点目标。
 - 优先使用不会修改状态的命令，例如：
   - `ssh -G <login_alias>`
   - `ssh <login_alias> hostname`

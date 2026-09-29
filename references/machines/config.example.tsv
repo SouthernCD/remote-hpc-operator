@@ -1,2 +1,2 @@
-machine_id	ssh_alias	login_node	remote_work_root	runs_root	scheduler	forbidden_business_targets
-example	<ssh_alias>	<login_node>	<remote_work_root>	<runs_root>	<slurm_or_sge>	<comma_separated_forbidden_targets>
+machine_id	ssh_alias	login_node	remote_work_root	runs_root	scheduler	forbidden_business_targets	execution_policy
+example	<ssh_alias>	<login_node>	<remote_work_root>	<runs_root>	<slurm_or_sge>	<comma_separated_forbidden_targets>	<profile_controlled_or_scheduler_only>

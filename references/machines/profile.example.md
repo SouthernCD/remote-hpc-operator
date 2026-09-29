@@ -47,6 +47,7 @@ Document any additional hops without exposing credentials.
 - Scheduler: `<scheduler>`
 - Read-only status commands: `<commands>`
 - Submission policy: `<policy>`
+- Execution policy: `<profile_controlled_or_scheduler_only>`
 - Default queue or partition: `<value_or_unknown>`
 
 ## Software and Environment Policy

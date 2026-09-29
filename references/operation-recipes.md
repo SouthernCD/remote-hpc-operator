@@ -234,6 +234,16 @@ cd <work_root>/<project>
 
 运行目录由机器脚本配置中的 `runs_root` 决定。
 
+启动后使用对应的状态脚本做有限检查。直接任务在 `status=running`、PID 存活，并且心跳或日志显示任务已越过启动阶段时，可以交接；如果程序本身长时间不输出，以进程状态和适合该程序的进度证据判断，不要仅凭空日志判为故障。调度作业先确认 job ID 和队列状态；仍在排队时报告排队并交接，已经开始运行时检查近期日志。无需为等作业开始或完成反复轮询。
+
+交接时记录实际返回值，不填示例值：
+
+- 直接任务：`machine`、`target`、`project`、`run_id`、`run_dir`、`pid.txt` 中的 PID、当前 `status`，以及 `<run_dir>/stdout.log`、`<run_dir>/stderr.log`。后续用 `scripts/check_remote_task.sh --machine <machine_id> --project <project> --run-id <run_id>` 查询。
+- SGE 作业：`machine`、`project`、`job_id`、`submit_dir`、作业脚本位置，以及脚本中配置的 stdout/stderr 路径。后续用 `scripts/check_sge_job.sh --machine <machine_id> --job-id <job_id>` 查询；调度作业的 PID 通常不可从提交结果获得。
+- 其他调度系统：按目标机器 profile 记录 job ID、队列/分区、脚本与日志路径，并使用该系统的只读状态命令查询。
+
+在最终回复中留下这些标识和查询入口，请用户查看日志或稍后让 agent 根据这些标识重新检查。重新查询时以远程状态为准，不能把上次交接时的状态当作当前状态。
+
 ## Troubleshooting
 
 积累常见故障及对应检查项，例如：
