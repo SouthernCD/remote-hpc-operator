@@ -1,6 +1,6 @@
 ---
 name: remote-hpc-operator
-description: Use this skill when the user needs the agent to access, inspect, transfer files to, submit jobs to, or troubleshoot one of their documented remote HPC or workstation environments over SSH, login nodes, schedulers, and remote development workflows.
+description: Use this skill to operate the user's documented HPC, workstation, or local Mac environments, including software organization, execution, file transfer, and scheduler workflows where applicable.
 ---
 
 # Remote HPC Operator
@@ -8,10 +8,11 @@ description: Use this skill when the user needs the agent to access, inspect, tr
 ## Machine Selection
 
 - 将 private config directory 解析为 `${REMOTE_HPC_OPERATOR_CONFIG_DIR:-<skill-root>/references/machines/local}`。
-- 每次远程任务都先读取 private config directory 中的 `index.md`。
-- 如果 private config directory、`index.md`、目标 profile 或 `config.tsv` 不存在，停止并说明缺少哪项配置。可参考 `references/machines/*.example.*` 创建私有配置，但绝不能把示例当作真实机器使用。
+- 每次机器相关任务都先读取 private config directory 中的 `index.md`。
+- 如果 private config directory、`index.md` 或目标 profile 不存在，停止并说明缺少哪项配置。只有使用本 skill 的 SSH/调度脚本时才要求 `config.tsv` 中有对应机器记录。可参考 `references/machines/*.example.*` 创建私有配置，但绝不能把示例当作真实机器使用。
 - 不存在默认机器。新任务若未指定机器，先询问用户选择；若用户明确要求查询先前某个任务，且当前对话中的交接记录能唯一确定机器和任务，可据此查询，不要把上次使用的机器当作其他任务的默认值。
 - 用户指定机器后，读取该机器的 profile，再继续执行任务。
+- 本地 Mac 可以作为 `access=local` 的特殊机器登记；本地任务直接执行命令，不经过 SSH，也不调用只支持远程机器的脚本。其软件和工作目录仍以该 profile 为准。
 - 不要把任意 profile 中的节点、目录、联网能力、调度系统或安全规则当作其他机器的普适事实。
 - 如果机器索引和机器 profile 冲突，以 profile 为准，并在输出中说明冲突。
 - 将真实账号、主机、路径、认证方式和集群拓扑仅保存在 private config directory；不要写入公开模板或其他可跟踪文件。
@@ -52,14 +53,14 @@ description: Use this skill when the user needs the agent to access, inspect, tr
 1. 解析 private config directory 并读取其中的机器索引，确认用户本次要操作的机器。
 2. 若机器未明确，询问用户选择；查询先前任务时，可使用当前对话中能唯一定位该任务的交接记录。
 3. 读取目标机器 profile，确认：
-   - SSH 入口和认证方式
+   - 访问方式；远程机器还需确认 SSH 入口和认证方式
    - 登录节点、执行节点、联网节点和禁止业务运行的节点
    - 工作目录、共享存储和临时目录规则
    - 调度系统、队列或直接执行策略
    - execution policy 是否为 `scheduler_only`
    - 软件环境、模块系统或用户态包管理策略
    - agent-managed software root 及其索引文件状态
-4. 用最小化只读命令验证链路是否通。
+4. 用最小化只读命令验证目标环境；本地机器检查身份、系统架构和目录，远程机器检查连接链路。
 5. 根据任务类型选择路径：
    - 连接和环境检查：保持只读，报告已验证事实
    - 文件传输：先确认目标路径和覆盖行为
@@ -83,6 +84,7 @@ description: Use this skill when the user needs the agent to access, inspect, tr
 ## Command Strategy
 
 - 搜索本地配置时，优先查看 `~/.ssh/config`、项目里的连接脚本、README、作业脚本。
+- `access=local` 的机器直接使用本地 shell；下列 SSH 策略及 `scripts/` 中的远程任务工具不适用。需要长任务记录时，把脚本、日志和状态文件留在 profile 指定的本地 runs root。
 - 搜索文本优先用 `rg`。
 - 对远程命令保持最小化和可审计，避免一次执行过长的链式命令。
 - SSH quoting avoidance protocol:

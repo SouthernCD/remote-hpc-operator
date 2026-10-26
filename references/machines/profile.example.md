@@ -8,12 +8,15 @@ accounts, hosts, paths, authentication details, or cluster topology.
 
 - Machine ID: `<machine_id>`
 - Cluster name: `<descriptive_name>`
-- Scheduler: `<Slurm_SGE_PBS_LSF_or_direct>`
-- Login host alias: `<ssh_alias>`
-- Login node hostname: `<login_node>`
+- Access: `<ssh_or_local>`
+- Scheduler: `<Slurm_SGE_PBS_LSF_or_none>`
+- Login host alias: `<ssh_alias_or_not_applicable>`
+- Login node hostname: `<login_node_or_not_applicable>`
 - Username: `<username>`
 
 ## Authentication
+
+For `access=local`, record that SSH and remote authentication do not apply.
 
 - SSH access: `ssh <ssh_alias>`
 - Login mode: `<passwordless_password_MFA_or_other>`
@@ -22,6 +25,8 @@ accounts, hosts, paths, authentication details, or cluster topology.
 
 ## Access Path
 
+For `access=local`, record direct local shell access instead of the SSH path below.
+
 ```text
 local machine -> ssh <ssh_alias> -> <login_node>
 ```
@@ -29,6 +34,8 @@ local machine -> ssh <ssh_alias> -> <login_node>
 Document any additional hops without exposing credentials.
 
 ## Node Roles
+
+For `access=local`, document that there are no separate login or compute nodes.
 
 - `<login_node>`: `<allowed_management_and_submission_roles>`
 - `<execution_node_or_scheduler>`: `<allowed_execution_roles>`

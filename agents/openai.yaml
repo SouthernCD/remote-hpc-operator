@@ -1,6 +1,6 @@
 display_name: Remote HPC Operator
-short_description: Access and operate documented remote HPC environments safely.
+short_description: Operate documented HPC, workstation, and local Mac environments.
 default_prompt: >-
-  Use this skill to inspect, access, and operate one of the user's documented
-  remote HPC environments. Confirm the target machine, read its profile, then
-  follow the matching SSH path, scheduler rules, and command recipes.
+  Use this skill to operate one of the user's documented compute environments.
+  Confirm the target machine and read its profile, then follow its local or
+  remote access, software, and execution rules.
